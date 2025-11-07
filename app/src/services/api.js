@@ -25,6 +25,19 @@ export const Api = {
   getSensorReadings() {
     return request("/api/readings");
   },
+  // --- FITUR BARU: HAPUS SATU DATA SENSOR ---
+  deleteSensorReading(id) {
+    return request(`/api/readings/${id}`, {
+      method: "DELETE",
+    });
+  },
+  // --- FITUR BARU: HAPUS SEMUA DATA SENSOR ---
+  clearSensorReadings() {
+    return request("/api/readings/clear", {
+      method: "DELETE",
+    });
+  },
+
   getThresholds() {
     return request("/api/thresholds");
   },
@@ -32,6 +45,18 @@ export const Api = {
     return request("/api/thresholds", {
       method: "POST",
       body: JSON.stringify(payload),
+    });
+  },
+  // --- FITUR BARU: HAPUS SATU DATA THRESHOLD ---
+  deleteThreshold(id) {
+    return request(`/api/thresholds/${id}`, {
+      method: "DELETE",
+    });
+  },
+  // --- FITUR BARU: HAPUS SEMUA DATA THRESHOLD ---
+  clearThresholds() {
+    return request("/api/thresholds/clear", {
+      method: "DELETE",
     });
   },
 };

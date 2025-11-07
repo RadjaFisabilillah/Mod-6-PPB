@@ -57,4 +57,22 @@ export const ReadingsModel = {
     if (error) throw error;
     return normalize(data);
   },
+
+  // --- FITUR BARU: HAPUS SATU DATA BERDASARKAN ID ---
+  async remove(id) {
+    const { error } = await supabase.from(TABLE).delete().eq("id", id);
+    if (error) throw error;
+    return true;
+  },
+
+  // --- FITUR BARU: HAPUS SEMUA DATA ---
+  async clear() {
+    // Hapus semua baris, tidak ada filter
+    const { error } = await supabase
+      .from(TABLE)
+      .delete()
+      .gt("recorded_at", "1970-01-01");
+    if (error) throw error;
+    return true;
+  },
 };

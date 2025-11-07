@@ -9,8 +9,10 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Alert, // Import Alert
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import Ionicons from "@expo/vector-icons/Ionicons"; // Import icon
 import { Api } from "../services/api.js";
 import { DataTable } from "../components/DataTable.js";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -64,74 +66,144 @@ export function ControlScreen() {
     }
   }, [thresholdValue, note, fetchHistory]);
 
+  // --- FITUR BARU: HAPUS SATU DATA ---
+  const handleDeleteThreshold = useCallback(
+    (id) => {
+      Alert.alert(
+        "Confirm Delete",
+        "Are you sure you want to delete this single threshold entry?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: async () => {
+              setLoading(true);
+              try {
+                await Api.deleteThreshold(id);
+                await fetchHistory(); // Refresh data setelah menghapus
+              } catch (err) {
+                setError(`Failed to delete: ${err.message}`);
+              } finally {
+                setLoading(false);
+              }
+            },
+          },
+        ]
+      );
+    },
+    [fetchHistory]
+  );
+
+  // --- FITUR BARU: HAPUS SEMUA DATA ---
+  const handleClearThresholds = useCallback(() => {
+    Alert.alert(
+      "Confirm Clear History",
+      "Are you sure you want to permanently delete ALL threshold history?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Clear All",
+          style: "destructive",
+          onPress: async () => {
+            setLoading(true);
+            try {
+              await Api.clearThresholds();
+              await fetchHistory(); // Refresh data setelah menghapus semua
+            } catch (err) {
+              setError(`Failed to clear history: ${err.message}`);
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [fetchHistory]);
+
   return (
     <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.card}>
-          <Text style={styles.title}>Configure Threshold</Text>
-          {latestThreshold !== null && (
-            <Text style={styles.metaText}>
-              Current threshold: {Number(latestThreshold).toFixed(2)}°C
-            </Text>
-          )}
-          <Text style={styles.label}>Threshold (°C)</Text>
-          <TextInput
-            style={styles.input}
-            keyboardType="numeric"
-            value={String(thresholdValue)}
-            onChangeText={setThresholdValue}
-          />
-          <Text style={styles.label}>Note (optional)</Text>
-          <TextInput
-            style={[styles.input, styles.noteInput]}
-            value={note}
-            onChangeText={setNote}
-            multiline
-            numberOfLines={3}
-            placeholder="Describe why you are changing the threshold"
-          />
-          {error && <Text style={styles.errorText}>{error}</Text>}
-          <TouchableOpacity
-            style={[styles.button, submitting && styles.buttonDisabled]}
-            onPress={handleSubmit}
-            disabled={submitting}
-          >
-            {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Save Threshold</Text>}
-          </TouchableOpacity>
-        </View>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView contentContainerStyle={styles.container}>
+          <View style={styles.card}>
+            <Text style={styles.title}>Configure Threshold</Text>
+            {latestThreshold !== null && (
+              <Text style={styles.metaText}>
+                Current threshold: {Number(latestThreshold).toFixed(2)}°C
+              </Text>
+            )}
+            <Text style={styles.label}>Threshold (°C)</Text>
+            <TextInput
+              style={styles.input}
+              keyboardType="numeric"
+              value={String(thresholdValue)}
+              onChangeText={setThresholdValue}
+            />
+            <Text style={styles.label}>Note (optional)</Text>
+            <TextInput
+              style={[styles.input, styles.noteInput]}
+              value={note}
+              onChangeText={setNote}
+              multiline
+              numberOfLines={3}
+              placeholder="Describe why you are changing the threshold"
+            />
+            {error && <Text style={styles.errorText}>{error}</Text>}
+            <TouchableOpacity
+              style={[styles.button, submitting && styles.buttonDisabled]}
+              onPress={handleSubmit}
+              disabled={submitting}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Save Threshold</Text>
+              )}
+            </TouchableOpacity>
+          </View>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Threshold History</Text>
-          {loading && <ActivityIndicator />}
-        </View>
-        <DataTable
-          columns={[
-            {
-              key: "created_at",
-              title: "Saved At",
-              render: (value) => (value ? new Date(value).toLocaleString() : "--"),
-            },
-            {
-              key: "value",
-              title: "Threshold (°C)",
-              render: (value) =>
-                typeof value === "number" ? `${Number(value).toFixed(2)}` : "--",
-            },
-            {
-              key: "note",
-              title: "Note",
-              render: (value) => value || "-",
-            },
-          ]}
-          data={history}
-          keyExtractor={(item) => item.id}
-        />
-      </ScrollView>
-    </KeyboardAvoidingView>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Threshold History</Text>
+            <TouchableOpacity
+              onPress={handleClearThresholds}
+              style={styles.clearButton}
+            >
+              <Ionicons name="trash-outline" size={18} color="#c82333" />
+              <Text style={styles.clearButtonText}>Clear All</Text>
+            </TouchableOpacity>
+            {loading && <ActivityIndicator />}
+          </View>
+          <DataTable
+            columns={[
+              {
+                key: "created_at",
+                title: "Saved At",
+                render: (value) =>
+                  value ? new Date(value).toLocaleString() : "--",
+              },
+              {
+                key: "value",
+                title: "Threshold (°C)",
+                render: (value) =>
+                  typeof value === "number"
+                    ? `${Number(value).toFixed(2)}`
+                    : "--",
+              },
+              {
+                key: "note",
+                title: "Note",
+                render: (value) => value || "-",
+              },
+            ]}
+            data={history}
+            keyExtractor={(item) => item.id}
+            onDeleteItem={handleDeleteThreshold} // Pasang handler delete
+          />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -205,6 +277,16 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
+    fontWeight: "600",
+  },
+  clearButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 4,
+  },
+  clearButtonText: {
+    color: "#c82333",
+    marginLeft: 4,
     fontWeight: "600",
   },
 });

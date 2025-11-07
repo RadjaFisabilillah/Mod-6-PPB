@@ -7,4 +7,8 @@ router.get("/", ReadingsController.list);
 router.post("/", ReadingsController.create);
 router.get("/latest", ReadingsController.latest);
 
+// --- FITUR BARU: HAPUS DATA ---
+router.delete("/clear", ReadingsController.clear);
+router.delete("/:id", ReadingsController.remove);
+
 export default router;
