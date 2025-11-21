@@ -10,31 +10,35 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#000000"
     },
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
         "NSLocalNetworkUsageDescription": "This app needs local network access to connect to your development server."
-      }
+      },
+      "bundleIdentifier": "com.radjafisabilillah.iotwatch"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#000000"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.radjafisabilillah.iotwatch"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "backendUrl": "http://10.131.17.85:4000",
+      "backendUrl": "http://10.104.143.204:4000",
       "mqtt": {
         "brokerUrl": "wss://broker.hivemq.com:8884/mqtt",
         "topic": "ppb/kel06/iot/temperature"
-      }
+      },
+      "supabaseUrl": "https://kfsacyewukmathipjznc.supabase.co",
+      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtmc2FjeWV3dWttYXRoaXBqem5jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0NTA4MzMsImV4cCI6MjA3ODAyNjgzM30.FtJpEgUDcUJpdcGefoBf9djJ2t-TpJWvuKu28rPAn_g"
     },
-    "plugins": ["expo-font"]
+    "plugins": ["expo-font", "expo-splash-screen"]
   }
 }

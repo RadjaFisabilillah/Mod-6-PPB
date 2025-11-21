@@ -13,15 +13,21 @@ function normalize(row) {
 }
 
 export const ReadingsModel = {
-  async list() {
-    const { data, error } = await supabase
+  // --- PAGINATION FEATURE: Added limit and offset ---
+  async list(limit = 10, offset = 0) {
+    const { data, count, error } = await supabase
       .from(TABLE)
-      .select("id, temperature, threshold_value, recorded_at")
+      .select("id, temperature, threshold_value, recorded_at", {
+        count: "exact",
+      }) // Mendapatkan total count
       .order("recorded_at", { ascending: false })
-      .limit(100);
+      .limit(limit)
+      .range(offset, offset + limit - 1); // Menggunakan range untuk pagination
 
     if (error) throw error;
-    return data.map(normalize);
+
+    // Mengembalikan data dan total count
+    return { data: data.map(normalize), count };
   },
 
   async latest() {

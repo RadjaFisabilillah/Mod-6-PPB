@@ -7,16 +7,23 @@ import {
   RefreshControl,
   ActivityIndicator,
   TouchableOpacity,
-  Alert, // Import Alert
+  Alert,
 } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
-import Ionicons from "@expo/vector-icons/Ionicons"; // Import icon
+// --- Tambahkan useNavigation dari React Navigation ---
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMqttSensor } from "../hooks/useMqttSensor.js";
 import { Api } from "../services/api.js";
 import { DataTable } from "../components/DataTable.js";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+// Konstanta Pagination
+const PAGE_SIZE = 10;
+
 export function MonitoringScreen() {
+  // --- Inisialisasi hook navigation ---
+  const navigation = useNavigation();
+
   const {
     temperature,
     timestamp,
@@ -28,12 +35,20 @@ export function MonitoringScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [apiError, setApiError] = useState(null);
 
-  const fetchReadings = useCallback(async () => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const fetchReadings = useCallback(async (page = 1) => {
     setLoading(true);
     setApiError(null);
     try {
-      const data = await Api.getSensorReadings();
-      setReadings(data ?? []);
+      const result = await Api.getSensorReadings(page, PAGE_SIZE);
+
+      setReadings(result.data ?? []);
+
+      const totalCount = result.total || 0;
+      setTotalPages(Math.ceil(totalCount / PAGE_SIZE) || 1);
+      setCurrentPage(page);
     } catch (err) {
       setApiError(err.message);
     } finally {
@@ -43,20 +58,33 @@ export function MonitoringScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchReadings();
-    }, [fetchReadings])
+      fetchReadings(currentPage);
+    }, [fetchReadings, currentPage])
   );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await fetchReadings();
+      await fetchReadings(currentPage);
     } finally {
       setRefreshing(false);
     }
-  }, [fetchReadings]);
+  }, [fetchReadings, currentPage]);
 
-  // --- FITUR BARU: HAPUS SATU DATA ---
+  const handleNextPage = () => {
+    const nextPage = currentPage + 1;
+    if (nextPage <= totalPages) {
+      fetchReadings(nextPage);
+    }
+  };
+
+  const handlePreviousPage = () => {
+    const prevPage = currentPage - 1;
+    if (prevPage >= 1) {
+      fetchReadings(prevPage);
+    }
+  };
+
   const handleDeleteReading = useCallback(
     (id) => {
       Alert.alert(
@@ -71,7 +99,7 @@ export function MonitoringScreen() {
               setLoading(true);
               try {
                 await Api.deleteSensorReading(id);
-                await fetchReadings(); // Refresh data setelah menghapus
+                await fetchReadings(currentPage);
               } catch (err) {
                 setApiError(`Failed to delete: ${err.message}`);
               } finally {
@@ -82,10 +110,9 @@ export function MonitoringScreen() {
         ]
       );
     },
-    [fetchReadings]
+    [fetchReadings, currentPage]
   );
 
-  // --- FITUR BARU: HAPUS SEMUA DATA ---
   const handleClearReadings = useCallback(() => {
     Alert.alert(
       "Confirm Clear History",
@@ -99,7 +126,7 @@ export function MonitoringScreen() {
             setLoading(true);
             try {
               await Api.clearSensorReadings();
-              await fetchReadings(); // Refresh data setelah menghapus semua
+              await fetchReadings(1);
             } catch (err) {
               setApiError(`Failed to clear history: ${err.message}`);
             } finally {
@@ -139,8 +166,21 @@ export function MonitoringScreen() {
           )}
         </View>
 
+        {/* --- TOMBOL UJI GESTURE BARU --- */}
+        <TouchableOpacity
+          onPress={() => navigation.navigate("Detail")}
+          style={styles.testButton}
+        >
+          <Text style={styles.testButtonText}>
+            Go to Detail Page (Test Swipe Back Gesture)
+          </Text>
+        </TouchableOpacity>
+        {/* ----------------------------------- */}
+
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Triggered Readings History</Text>
+          <Text style={styles.sectionTitle}>
+            Triggered Readings History (Page {currentPage} of {totalPages})
+          </Text>
           <TouchableOpacity
             onPress={handleClearReadings}
             style={styles.clearButton}
@@ -182,8 +222,32 @@ export function MonitoringScreen() {
           ]}
           data={readings}
           keyExtractor={(item) => item.id}
-          onDeleteItem={handleDeleteReading} // Pasang handler delete
+          onDeleteItem={handleDeleteReading}
         />
+
+        <View style={styles.paginationContainer}>
+          <TouchableOpacity
+            onPress={handlePreviousPage}
+            disabled={currentPage === 1 || loading}
+            style={[
+              styles.paginationButton,
+              (currentPage === 1 || loading) && styles.buttonDisabled,
+            ]}
+          >
+            <Text style={styles.buttonText}>Sebelumnya</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={handleNextPage}
+            disabled={currentPage === totalPages || loading}
+            style={[
+              styles.paginationButton,
+              (currentPage === totalPages || loading) && styles.buttonDisabled,
+            ]}
+          >
+            <Text style={styles.buttonText}>Berikutnya</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -246,5 +310,38 @@ const styles = StyleSheet.create({
     color: "#c82333",
     marginLeft: 4,
     fontWeight: "600",
+  },
+  paginationContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    paddingVertical: 10,
+    marginBottom: 20,
+  },
+  paginationButton: {
+    backgroundColor: "#2563eb",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  buttonText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  // --- NEW STYLES FOR GESTURE TEST BUTTON ---
+  testButton: {
+    backgroundColor: "#4CAF50",
+    padding: 10,
+    borderRadius: 5,
+    alignItems: "center",
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  testButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
   },
 });

@@ -16,8 +16,12 @@ import Ionicons from "@expo/vector-icons/Ionicons"; // Import icon
 import { Api } from "../services/api.js";
 import { DataTable } from "../components/DataTable.js";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useAuth } from "../contexts/AuthContext.js"; // Import useAuth
 
 export function ControlScreen() {
+  const { isAuthenticated, session } = useAuth(); // Get auth state
+  const token = session?.access_token; // Get token for protected routes
+
   const [thresholdValue, setThresholdValue] = useState(30);
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -40,13 +44,25 @@ export function ControlScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchHistory();
-    }, [fetchHistory])
+      // Hanya ambil data jika terautentikasi
+      if (isAuthenticated) {
+        fetchHistory();
+      } else {
+        setHistory([]);
+        // Error akan ditampilkan di blok render jika !isAuthenticated
+      }
+    }, [fetchHistory, isAuthenticated])
   );
 
   const latestThreshold = useMemo(() => history?.[0]?.value ?? null, [history]);
 
   const handleSubmit = useCallback(async () => {
+    if (!isAuthenticated) {
+      // Check auth before submitting
+      setError("Login is required to save a new threshold.");
+      return;
+    }
+
     const valueNumber = Number(thresholdValue);
     if (Number.isNaN(valueNumber)) {
       setError("Please enter a numeric threshold.");
@@ -56,7 +72,8 @@ export function ControlScreen() {
     setSubmitting(true);
     setError(null);
     try {
-      await Api.createThreshold({ value: valueNumber, note });
+      // Pass token to protected API route
+      await Api.createThreshold({ value: valueNumber, note }, token);
       setNote("");
       await fetchHistory();
     } catch (err) {
@@ -64,11 +81,17 @@ export function ControlScreen() {
     } finally {
       setSubmitting(false);
     }
-  }, [thresholdValue, note, fetchHistory]);
+  }, [thresholdValue, note, fetchHistory, isAuthenticated, token]);
 
   // --- FITUR BARU: HAPUS SATU DATA ---
   const handleDeleteThreshold = useCallback(
     (id) => {
+      if (!isAuthenticated) {
+        // Check auth before action
+        setError("Login is required to delete an entry.");
+        return;
+      }
+
       Alert.alert(
         "Confirm Delete",
         "Are you sure you want to delete this single threshold entry?",
@@ -80,7 +103,8 @@ export function ControlScreen() {
             onPress: async () => {
               setLoading(true);
               try {
-                await Api.deleteThreshold(id);
+                // Pass token to protected API route
+                await Api.deleteThreshold(id, token);
                 await fetchHistory(); // Refresh data setelah menghapus
               } catch (err) {
                 setError(`Failed to delete: ${err.message}`);
@@ -92,11 +116,17 @@ export function ControlScreen() {
         ]
       );
     },
-    [fetchHistory]
+    [fetchHistory, isAuthenticated, token]
   );
 
   // --- FITUR BARU: HAPUS SEMUA DATA ---
   const handleClearThresholds = useCallback(() => {
+    if (!isAuthenticated) {
+      // Check auth before action
+      setError("Login is required to clear history.");
+      return;
+    }
+
     Alert.alert(
       "Confirm Clear History",
       "Are you sure you want to permanently delete ALL threshold history?",
@@ -108,7 +138,8 @@ export function ControlScreen() {
           onPress: async () => {
             setLoading(true);
             try {
-              await Api.clearThresholds();
+              // Pass token to protected API route
+              await Api.clearThresholds(token);
               await fetchHistory(); // Refresh data setelah menghapus semua
             } catch (err) {
               setError(`Failed to clear history: ${err.message}`);
@@ -119,7 +150,22 @@ export function ControlScreen() {
         },
       ]
     );
-  }, [fetchHistory]);
+  }, [fetchHistory, isAuthenticated, token]);
+
+  // Block UI if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
+        <View style={[styles.container, styles.unauthorizedContainer]}>
+          <Ionicons name="lock-closed-outline" size={60} color="#c82333" />
+          <Text style={styles.unauthorizedText}>Akses Ditolak</Text>
+          <Text style={styles.unauthorizedTextDetail}>
+            Silakan masuk untuk mengakses fitur kontrol.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
@@ -268,6 +314,7 @@ const styles = StyleSheet.create({
   errorText: {
     marginTop: 12,
     color: "#c82333",
+    textAlign: "center",
   },
   sectionHeader: {
     flexDirection: "row",
@@ -288,5 +335,23 @@ const styles = StyleSheet.create({
     color: "#c82333",
     marginLeft: 4,
     fontWeight: "600",
+  },
+  unauthorizedContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: "#f8f9fb",
+  },
+  unauthorizedText: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#c82333",
+    marginTop: 10,
+  },
+  unauthorizedTextDetail: {
+    fontSize: 16,
+    color: "#666",
+    marginTop: 5,
   },
 });

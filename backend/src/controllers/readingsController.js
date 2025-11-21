@@ -3,8 +3,19 @@ import { ReadingsModel } from "../models/readingsModel.js";
 export const ReadingsController = {
   async list(req, res) {
     try {
-      const data = await ReadingsModel.list();
-      res.json(data);
+      // Ambil parameter query untuk pagination
+      const limit = Number(req.query.limit) || 10;
+      const offset = Number(req.query.offset) || 0;
+
+      const { data, count } = await ReadingsModel.list(limit, offset);
+
+      // Kirim data, total count, limit, dan offset untuk info pagination
+      res.json({
+        data,
+        total: count,
+        limit,
+        offset,
+      });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
